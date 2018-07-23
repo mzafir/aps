@@ -1,1 +1,1 @@
-select * from dbobject
+select demo.patient_id, demo.birth_date, demo.gender, events.icd_version, icd_code from demo INNER JOIN events on demo.patient_id=events.patient_id limit 10
