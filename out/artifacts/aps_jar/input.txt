@@ -1,1 +1,1 @@
-select demo.patient_id, demo.birth_date, demo.gender, events.icd_version, events.date,  events.icd_code from demo INNER JOIN events on demo.patient_id=events.patient_id limit 10;
+select e.date,e.icd_code as code, d.patient_id,d.birth_date, d.gender from events e inner join demo d on e.patient_id=d.patient_id

@@ -45,13 +45,52 @@ public class Main {
             rs = stmt.executeQuery( query );
             ResultSetMetaData rsmd = rs.getMetaData();
             int columnCount = rsmd.getColumnCount();
+            Boolean nextPatientFound = true;
+            String patientId = "";
+            JSONObject patientJsonObject = new JSONObject();
+            JSONArray eventList = new JSONArray();
+
+
+            //Get patient data from First Row
+            rs.next();
+            patientJsonObject.put("birthDate", rs.getString("birth_date"));
+            patientJsonObject.put("gender", rs.getString("gender"));
+            patientJsonObject.put("events",eventList);
+            patientId = rs.getString("patient_id");
+            nextPatientFound=false;
+            //Moving cursor one step back
+            rs.previous();
+
             while ( rs.next() ) {
-                JSONObject singleRow = new JSONObject();
-                for (int i = 1; i <= columnCount; i++ ) {
-                    String name = rsmd.getColumnName(i);
-                    singleRow.put(name,rs.getObject(name));
+
+                //determine if patientID has changed
+                //if true, then new patient row has been found.
+                if(rs.getString("patient_id").equals(patientId) == false){
+                    patientId = rs.getString("patient_id");
+                    nextPatientFound = true;
                 }
-                list.add(singleRow);
+
+                //nextPatientFound == false means still getting
+                //same patient ID in each row
+                if(nextPatientFound == false){
+                    JSONObject eventJsonObject = new JSONObject();
+                    eventJsonObject.put("date",rs.getString("date"));
+                    eventJsonObject.put("code",rs.getString("code"));
+                    eventList.add(eventJsonObject);
+
+                } else {
+                    list.add(patientJsonObject);
+
+                    //New Entry
+                    patientJsonObject = new JSONObject();
+                    eventList = new JSONArray();
+                    patientJsonObject.put("birthDate", rs.getString("birth_date"));
+                    patientJsonObject.put("gender", rs.getString("gender"));
+                    patientJsonObject.put("events",eventList);
+
+                    //reset boolean
+                    nextPatientFound = false;
+                }
             }
 
 
