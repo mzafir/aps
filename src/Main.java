@@ -1,11 +1,16 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.oracle.javafx.jmx.json.JSONException;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 import java.io.*;
 import java.sql.*;
-import java.util.Properties;
+import java.text.ParseException;
+import java.util.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
 
@@ -61,6 +66,7 @@ public class Main {
             //Moving cursor one step back
             rs.previous();
 
+            //loop until result set is not finished.
             while ( rs.next() ) {
 
                 //determine if patientID has changed
@@ -79,6 +85,17 @@ public class Main {
                     eventList.add(eventJsonObject);
 
                 } else {
+                    //Get events list here and sort them
+                    JSONArray events = (JSONArray)patientJsonObject.get("events");
+                    sortEventsList(events);
+
+                    //here we are adding min,max,median for one patient object
+                    //based on events
+                    patientJsonObject.put("minTimeline",getMinFromEvents(events));
+                    patientJsonObject.put("maxTimeline",getMaxFromEvents(events));
+                    patientJsonObject.put("medianTimeline",getMedianFromEvents(events));
+
+
                     list.add(patientJsonObject);
 
                     //New Entry
@@ -116,6 +133,141 @@ public class Main {
 
         allRowsObject.put("rows",list);
         return allRowsObject;
+    }
+
+    private static double getMedianFromEvents(JSONArray events) {
+        if(events.size() > 1){
+            final String KEY_NAME = "date";
+            List<Long> deltasList = new ArrayList<>();
+
+            for(int i=0;i<events.size()-1;i++){
+                JSONObject firstObject = (JSONObject) events.get(i);
+                JSONObject secondObject = (JSONObject) events.get(i+1);
+
+                Date firstObjectDate = null;
+                Date secondObjectDate = null;
+
+                String valA = (String) firstObject.get(KEY_NAME);
+                String valB = (String) secondObject.get(KEY_NAME);
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                try {
+                    firstObjectDate = sdf.parse(valA);
+                    secondObjectDate = sdf.parse(valB);
+
+                    long diff = secondObjectDate.getTime() - firstObjectDate.getTime();
+                    long daysDiff = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
+                    deltasList.add(daysDiff);
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
+
+            }//end-for-loop
+
+            OptionalDouble average = deltasList
+                    .stream()
+                    .mapToDouble(a -> a)
+                    .average();
+
+            return average.isPresent() ? average.getAsDouble() : 0;
+        }
+
+        return -1;
+    }
+
+    private static long getMaxFromEvents(JSONArray events) {
+        if(events.size() > 1){
+            final String KEY_NAME = "date";
+            int totalLength = events.size();
+            JSONObject firstObject = (JSONObject) events.get(0);
+            JSONObject lastObject = (JSONObject) events.get(totalLength - 1);
+
+            Date firstObjectDate = null;
+            Date lastObjectDate = null;
+
+            String valA = (String) firstObject.get(KEY_NAME);
+            String valB = (String) lastObject.get(KEY_NAME);
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            try {
+                firstObjectDate = sdf.parse(valA);
+                lastObjectDate = sdf.parse(valB);
+
+                long diff = lastObjectDate.getTime() - firstObjectDate.getTime();
+                return TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+
+            return -1;
+        }
+
+        return -1;
+    }
+
+    private static long getMinFromEvents(JSONArray events) {
+        if(events.size() > 1){
+            final String KEY_NAME = "date";
+            long minDays = Long.MAX_VALUE;
+
+            for(int i=0;i<events.size()-1;i++){
+                JSONObject firstObject = (JSONObject) events.get(i);
+                JSONObject secondObject = (JSONObject) events.get(i+1);
+
+                Date firstObjectDate = null;
+                Date secondObjectDate = null;
+
+                String valA = (String) firstObject.get(KEY_NAME);
+                String valB = (String) secondObject.get(KEY_NAME);
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                try {
+                    firstObjectDate = sdf.parse(valA);
+                    secondObjectDate = sdf.parse(valB);
+
+                    long diff = secondObjectDate.getTime() - firstObjectDate.getTime();
+                    long days = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
+                    if(days < minDays){
+                        minDays = days;
+                    }
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
+
+            }//end-for-loop
+
+            return minDays;
+        }
+
+        return -1;
+    }
+
+    private static void sortEventsList(JSONArray events) {
+
+        Collections.sort( events, new Comparator<JSONObject>() {
+            //You can change "Name" with "ID" if you want to sort by ID
+            private static final String KEY_NAME = "date";
+
+            @Override
+            public int compare(JSONObject a, JSONObject b) {
+                String valA = new String();
+                String valB = new String();
+                Date date1 = null;
+                Date date2 = null;
+                try {
+                    valA = (String) a.get(KEY_NAME);
+                    valB = (String) b.get(KEY_NAME);
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                    date1 = sdf.parse(valA);
+                    date2 = sdf.parse(valB);
+                }
+                catch (Exception e) {
+                    e.printStackTrace(System.err);
+                }
+
+                return date1.compareTo(date2);
+                //if you want to change the sort order, simply use the following:
+                //return -valA.compareTo(valB);
+            }
+        });
+
     }
 
     public static String getQueryFromInputFile() throws IOException {
