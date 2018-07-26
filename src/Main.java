@@ -91,8 +91,8 @@ public class Main {
 
                     //here we are adding min,max,median for one patient object
                     //based on events
-                    patientJsonObject.put("minTimeline",getMinFromEvents(events));
                     patientJsonObject.put("maxTimeline",getMaxFromEvents(events));
+                    patientJsonObject.put("minTimeline",getMinFromEvents(events));
                     patientJsonObject.put("medianTimeline",getMedianFromEvents(events));
 
 
